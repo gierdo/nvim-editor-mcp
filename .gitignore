@@ -1,0 +1,12 @@
+dist
+*.bkp
+.coverage*
+.DS_Store
+.mypy_cache
+.ruff_cache
+.idea
+__pycache__
+.venv
+.env
+.lazy.lua
+.serena

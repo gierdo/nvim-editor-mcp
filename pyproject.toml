@@ -1,0 +1,42 @@
+[project]
+name = "nvim-editor-mcp"
+version = "0.1.0"
+description = "MCP server bridging tool calls to Neovim editor actions via RPC"
+requires-python = ">=3.11"
+dependencies = [
+    "fastmcp>=3.4,<4",
+    "pynvim>=0.5,<1",
+]
+
+[project.scripts]
+nvim-editor-mcp = "nvim_editor_mcp.server:main"
+
+[build-system]
+requires = ["uv_build>=0.10,<1"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-name = "nvim_editor_mcp"
+module-root = "src"
+
+[dependency-groups]
+dev = [
+    "pytest>=8,<9",
+    "ruff>=0.16.1",
+    "ty>=0.0.69",
+]
+
+
+[tool.ruff]
+line-length = 120
+target-version = "py314"
+
+[tool.ruff.lint]
+extend-select = ['N', 'S', 'FAST', 'PTH', 'I', 'G']
+fixable = ["ALL"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S101", "S108"]
+
+[tool.ty.terminal]
+error-on-warning = true
