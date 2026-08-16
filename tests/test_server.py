@@ -32,6 +32,25 @@ class TestNvimConnection:
         assert c.is_connected
         mock_attach.assert_called_once_with("socket", path=str(sock))
 
+    def test_detach_not_connected(self):
+        c = NvimConnection()
+        result = c.detach()
+        assert "Not attached" in result
+        assert not c.is_connected
+
+    @patch("nvim_editor_mcp.connection.pynvim.attach")
+    def test_detach_after_attached(self, mock_attach, tmp_path):
+        sock = tmp_path / "nvim.sock"
+        sock.touch()
+        c = NvimConnection()
+        c.attach(str(sock))
+        assert c.is_connected
+
+        result = c.detach()
+        assert "Detached" in result
+        assert not c.is_connected
+        mock_attach.return_value.close.assert_called_once()
+
     @patch("nvim_editor_mcp.connection.pynvim.attach")
     def test_get_with_configured_path(self, mock_attach):
         c = NvimConnection(socket_path="/some/path")
@@ -149,3 +168,14 @@ class TestNvimExecLuaTool:
         nvim_exec_lua("return vim.api.nvim_buf_get_lines(...)", args=[0])
 
         nvim_mock.exec_lua.assert_called_once_with("return vim.api.nvim_buf_get_lines(...)", 0)
+
+
+class TestDetachTool:
+    def test_detach_calls_conn_detach(self):
+        from nvim_editor_mcp.server import detach_nvim
+
+        with patch("nvim_editor_mcp.server.conn") as conn_mock:
+            conn_mock.detach.return_value = "Detached from Neovim"
+            result = detach_nvim()
+            assert result == "Detached from Neovim"
+            conn_mock.detach.assert_called_once()

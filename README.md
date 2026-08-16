@@ -38,6 +38,7 @@ unset, it starts anyway and discovers the socket on the first tool call (via
 | Tool | Description |
 | ------- | ------------- |
 | `attach_nvim` | Connect to a Neovim instance by socket path |
+| `detach_nvim` | Detach from the current Neovim instance |
 | `open_file` | Open a file at a specific line |
 | `set_quickfix` | Populate the quickfix list |
 | `get_diagnostics` | Fetch LSP diagnostics |

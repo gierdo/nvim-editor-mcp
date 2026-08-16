@@ -28,6 +28,21 @@ class NvimConnection:
         self._socket_path = socket
         return f"Attached to Neovim at {socket}"
 
+    def detach(self) -> str:
+        """Detach from the Neovim instance."""
+        if self._nvim is None and self._socket_path is None:
+            return "Not attached to any Neovim instance"
+
+        if self._nvim is not None:
+            try:
+                self._nvim.close()
+            except Exception:  # noqa: BLE001, S110
+                pass
+            self._nvim = None
+
+        self._socket_path = None
+        return "Detached from Neovim"
+
     def get(self) -> pynvim.Nvim:
         """Return the attached instance, auto-connecting if possible, or raise with discovery info."""
         if self._nvim is not None:

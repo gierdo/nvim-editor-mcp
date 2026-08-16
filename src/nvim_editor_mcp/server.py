@@ -5,7 +5,7 @@ Usage:
     nvim-editor-mcp  (auto-discovers socket via $NVIM env var)
     nvim-editor-mcp  (no socket — starts anyway, discovers on first tool call)
 
-Exposes tools: attach_nvim, open_file, set_quickfix, get_diagnostics, nvim_exec_lua, notify
+Exposes tools: attach_nvim, detach_nvim, open_file, set_quickfix, get_diagnostics, nvim_exec_lua, notify
 """
 
 from __future__ import annotations
@@ -28,6 +28,12 @@ def attach_nvim(socket: str) -> str:
     Use this when multiple Neovim instances are running and you need to select one.
     """
     return conn.attach(socket)
+
+
+@mcp.tool
+def detach_nvim() -> str:
+    """Detach from the current Neovim instance."""
+    return conn.detach()
 
 
 @mcp.tool
