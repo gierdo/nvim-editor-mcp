@@ -27,6 +27,10 @@ nvim-editor-mcp
 
 # Explicit socket path
 nvim-editor-mcp --socket /tmp/nvim.sock
+
+# Show a Vim message whenever the MCP performs an action
+nvim-editor-mcp --notify
+# Or via environment variable: NVIM_MCP_NOTIFY=true nvim-editor-mcp
 ```
 
 The server starts in stdio MCP mode. If no socket is given and `$NVIM` is
@@ -37,7 +41,8 @@ unset, it starts anyway and discovers the socket on the first tool call (via
 
 | Tool | Description |
 | ------- | ------------- |
-| `attach_nvim` | Connect to a Neovim instance by socket path |
+| `list_nvim_instances` | List running Neovim instances with socket path, cwd, open buffers, and Herdr pane info |
+| `attach_nvim` | Connect to a Neovim instance by socket path (or auto-attach to the matching instance) |
 | `detach_nvim` | Detach from the current Neovim instance |
 | `open_file` | Open a file at a specific line |
 | `set_quickfix` | Populate the quickfix list |
