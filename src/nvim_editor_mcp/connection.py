@@ -119,7 +119,11 @@ class NvimConnection:
 
         sockets = find_nvim_sockets()
         if not sockets:
-            msg = "No Neovim instance found. Start Neovim or pass --socket."
+            msg = (
+                "No Neovim instance found (checked XDG_RUNTIME_DIR and /tmp). "
+                "Do NOT search for sockets with `ls` or `find` in the shell — no Neovim server is running. "
+                "Start Neovim first before retrying."
+            )
             raise RuntimeError(msg)
 
         if len(sockets) == 1:
@@ -136,10 +140,13 @@ class NvimConnection:
 
         socket_list = "\n".join(inst.format_line(i) for i, inst in enumerate(instances))
         msg = (
-            f"Multiple Neovim instances found:\n{socket_list}\n\n"
-            "Call the `attach_nvim` tool with the socket path to connect "
-            "(when in a Herdr workspace, select an instance in the same workspace, "
-            "preferring the same working directory)."
+            f"Not attached to a Neovim instance. Multiple Neovim instances found:\n{socket_list}\n\n"
+            "Next steps:\n"
+            "1. Pick the socket path above that matches your current working directory "
+            "(and your `$HERDR_WORKSPACE_ID` / `$HERDR_TAB_ID` if running in Herdr).\n"
+            '2. Call the `attach_nvim` MCP tool with `socket="<socket_path>"`.\n'
+            "3. Retry your original MCP tool call.\n"
+            "Do NOT run shell commands (`ls`, `find`, `nvim --server`) to search for or interact with Neovim sockets."
         )
         raise RuntimeError(msg)
 

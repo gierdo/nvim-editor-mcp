@@ -65,8 +65,9 @@ class TestNvimConnection:
     @patch("nvim_editor_mcp.connection.find_nvim_sockets", return_value=[])
     def test_get_no_sockets_raises(self, _):
         c = NvimConnection()
-        with pytest.raises(RuntimeError, match="No Neovim instance found"):
+        with pytest.raises(RuntimeError, match="No Neovim instance found") as exc_info:
             c.get()
+        assert "Do NOT search for sockets" in str(exc_info.value)
 
     @patch("nvim_editor_mcp.connection.pynvim.attach")
     @patch("nvim_editor_mcp.connection.find_nvim_sockets", return_value=["/tmp/nvim.abc/0"])
@@ -92,6 +93,8 @@ class TestNvimConnection:
         assert "/other/a" in msg
         assert "w1:p1" in msg
         assert "a.py" in msg
+        assert "attach_nvim" in msg
+        assert "Do NOT run shell commands" in msg
 
     @patch("nvim_editor_mcp.connection.pynvim.attach")
     @patch(

@@ -33,8 +33,9 @@ mcp = FastMCP(
         "Bridge MCP tool calls to a running Neovim instance. "
         "When orchestrated in a Herdr workspace, always interact with a Neovim instance "
         "in the same Herdr workspace, preferring instances in the same working directory "
-        "(and same Herdr tab). If multiple instances are running and auto-attach cannot "
-        "uniquely resolve one, call `list_nvim_instances` and pass the matching socket to `attach_nvim`."
+        "(and same Herdr tab). If a tool call returns an error listing multiple running "
+        "instances, pick the matching socket from that error message, call `attach_nvim(socket=...)`, "
+        "and retry the tool call. Never search for Neovim sockets via shell commands (`ls`, `find`)."
     ),
 )
 conn = NvimConnection()
@@ -78,11 +79,15 @@ def attach_nvim(socket: str | None = None) -> str:
 
     When multiple Neovim instances are running in a Herdr session, agents orchestrated in a Herdr workspace
     should attach to an instance in the same workspace, preferring instances in the same working directory.
+    Do not search for sockets via shell commands (`ls`, `find`); omit `socket` or use `list_nvim_instances` to inspect them.
     """
     if not socket:
         instances = inspect_nvim_instances()
         if not instances:
-            return "No running Neovim instances found."
+            return (
+                "No running Neovim instances found (checked XDG_RUNTIME_DIR and /tmp). "
+                "Do NOT search for sockets with `ls` or `find` in the shell — start Neovim first."
+            )
         if len(instances) == 1:
             socket = instances[0].socket
         else:
@@ -91,9 +96,11 @@ def attach_nvim(socket: str | None = None) -> str:
                 listing = "\n".join(inst.format_line(i) for i, inst in enumerate(instances))
                 return (
                     f"Multiple Neovim instances found and none uniquely matched:\n{listing}\n\n"
-                    "Pass `socket` to `attach_nvim` to select one "
-                    "(when in a Herdr workspace, select an instance in the same workspace, "
-                    "preferring the same working directory)."
+                    "Next steps:\n"
+                    "1. Pick the socket path above that matches your current working directory "
+                    "(and your `$HERDR_WORKSPACE_ID` / `$HERDR_TAB_ID` if running in Herdr).\n"
+                    '2. Call `attach_nvim(socket="<socket_path>")`.\n'
+                    "Do NOT run shell commands (`ls`, `find`) to search for Neovim sockets."
                 )
             socket = matched.socket
     res = conn.attach(socket)
@@ -110,7 +117,13 @@ def detach_nvim() -> str:
 
 @mcp.tool
 def open_file(path: str, line: int = 1) -> str:
-    """Open a file in Neovim at a specific line."""
+    """Open a file in Neovim at a specific line.
+
+    If not yet attached to a Neovim instance, this call may return an error listing all running
+    Neovim sockets with their `cwd` and Herdr workspace/tab info. When that happens, call
+    `attach_nvim(socket=...)` with the matching socket from the error message and retry `open_file`.
+    Never search for Neovim sockets manually with shell commands (`ls`, `find`).
+    """
     nvim = conn.get()
     _notify_action("open_file")
     nvim.command(f"edit +{line} {nvim.funcs.fnameescape(path)}")
@@ -119,7 +132,12 @@ def open_file(path: str, line: int = 1) -> str:
 
 @mcp.tool
 def set_quickfix(items: list[QuickfixItem], title: str = "MCP findings") -> str:
-    """Populate Neovim's quickfix list with locations and open it."""
+    """Populate Neovim's quickfix list with locations and open it.
+
+    If not yet attached to a Neovim instance, this call may return an error listing all running
+    Neovim sockets. When that happens, call `attach_nvim(socket=...)` with the matching socket
+    from the error message and retry `set_quickfix`. Never search for sockets via shell commands.
+    """
     nvim = conn.get()
     _notify_action("set_quickfix")
     qf_items = [
@@ -141,7 +159,12 @@ def get_diagnostics(
     path: str | None = None,
     severity: Literal["error", "warn", "info", "hint"] = "warn",
 ) -> str:
-    """Get LSP diagnostics from Neovim for a file or all open buffers."""
+    """Get LSP diagnostics from Neovim for a file or all open buffers.
+
+    If not yet attached to a Neovim instance, this call may return an error listing all running
+    Neovim sockets. When that happens, call `attach_nvim(socket=...)` with the matching socket
+    from the error message and retry `get_diagnostics`. Never search for sockets via shell commands.
+    """
     min_severity = {"error": 1, "warn": 2, "info": 3, "hint": 4}[severity]
     nvim = conn.get()
     _notify_action("get_diagnostics")
@@ -174,6 +197,10 @@ def nvim_exec_lua(code: str, args: list | None = None) -> str:
     The code should be a Lua expression or block. Use `return` to send a value back.
     Optional positional args are available in Lua as `...` (varargs) or via `select(n, ...)`.
 
+    If not yet attached to a Neovim instance, this call may return an error listing all running
+    Neovim sockets. When that happens, call `attach_nvim(socket=...)` with the matching socket
+    from the error message and retry `nvim_exec_lua`. Never search for sockets via shell commands.
+
     Examples:
         code="return vim.api.nvim_get_current_buf()"
         code="return vim.api.nvim_buf_get_lines(select(1, ...), 0, -1, false)", args=[0]
@@ -190,7 +217,12 @@ def notify(
     message: str,
     level: Literal["info", "warn", "error"] = "info",
 ) -> str:
-    """Show a notification message in Neovim."""
+    """Show a notification message in Neovim.
+
+    If not yet attached to a Neovim instance, this call may return an error listing all running
+    Neovim sockets. When that happens, call `attach_nvim(socket=...)` with the matching socket
+    from the error message and retry `notify`. Never search for sockets via shell commands.
+    """
     level_map = {"info": 2, "warn": 3, "error": 4}
     nvim = conn.get()
     _notify_action("notify")
