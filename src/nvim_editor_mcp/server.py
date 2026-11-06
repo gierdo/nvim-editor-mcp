@@ -3,10 +3,10 @@
 Usage:
     nvim-editor-mcp --socket /path/to/nvim.socket
     nvim-editor-mcp --notify (shows vim notification for actions)
-    nvim-editor-mcp  (auto-discovers socket via $NVIM env var)
+    nvim-editor-mcp  (auto-discovers socket via $NVIM, cwd, or Herdr topology)
     nvim-editor-mcp  (no socket — starts anyway, discovers on first tool call)
 
-Exposes tools: attach_nvim, detach_nvim, open_file, set_quickfix, get_diagnostics, nvim_exec_lua, notify
+Exposes tools: list_nvim_instances, attach_nvim, detach_nvim, open_file, set_quickfix, get_diagnostics, nvim_exec_lua, notify
 """
 
 from __future__ import annotations
@@ -27,7 +27,16 @@ class QuickfixItem(TypedDict):
     text: str
 
 
-mcp = FastMCP("nvim-editor-mcp")
+mcp = FastMCP(
+    "nvim-editor-mcp",
+    instructions=(
+        "Bridge MCP tool calls to a running Neovim instance. "
+        "When orchestrated in a Herdr workspace, always interact with a Neovim instance "
+        "in the same Herdr workspace, preferring instances in the same working directory "
+        "(and same Herdr tab). If multiple instances are running and auto-attach cannot "
+        "uniquely resolve one, call `list_nvim_instances` and pass the matching socket to `attach_nvim`."
+    ),
+)
 conn = NvimConnection()
 
 notify_actions = os.environ.get("NVIM_MCP_NOTIFY", "").lower() in ("true", "1", "yes")
@@ -43,7 +52,11 @@ def _notify_action(action: str) -> None:
 
 @mcp.tool
 def list_nvim_instances() -> str:
-    """List running Neovim instances with their socket path, working directory, open buffers, and Herdr pane info."""
+    """List running Neovim instances with their socket path, working directory, open buffers, and Herdr pane/tab/workspace info.
+
+    Marks the currently `[attached]` instance or `[recommended]` match. When orchestrated in a Herdr workspace,
+    choose an instance in the same Herdr workspace, preferring one in the same working directory.
+    """
     instances = inspect_nvim_instances()
     if not instances:
         return "No running Neovim instances found."
@@ -63,7 +76,8 @@ def list_nvim_instances() -> str:
 def attach_nvim(socket: str | None = None) -> str:
     """Attach to a specific Neovim instance by socket path, or auto-attach to the matching instance if omitted.
 
-    Use this when multiple Neovim instances are running and you need to select one.
+    When multiple Neovim instances are running in a Herdr session, agents orchestrated in a Herdr workspace
+    should attach to an instance in the same workspace, preferring instances in the same working directory.
     """
     if not socket:
         instances = inspect_nvim_instances()
@@ -77,7 +91,9 @@ def attach_nvim(socket: str | None = None) -> str:
                 listing = "\n".join(inst.format_line(i) for i, inst in enumerate(instances))
                 return (
                     f"Multiple Neovim instances found and none uniquely matched:\n{listing}\n\n"
-                    "Pass `socket` to `attach_nvim` to select one."
+                    "Pass `socket` to `attach_nvim` to select one "
+                    "(when in a Herdr workspace, select an instance in the same workspace, "
+                    "preferring the same working directory)."
                 )
             socket = matched.socket
     res = conn.attach(socket)

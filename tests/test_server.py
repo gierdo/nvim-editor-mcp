@@ -166,6 +166,32 @@ class TestSelectMatchingInstance:
         assert matched is not None
         assert matched.socket == "/s2"
 
+    def test_prefers_same_workspace_over_other_workspace_cwd(self, tmp_path):
+        d1 = tmp_path / "p1"
+        d2 = tmp_path / "p2"
+        d1.mkdir()
+        d2.mkdir()
+        instances = [
+            NvimInstanceInfo(socket="/s1", cwd=str(d1), herdr_tab_id="w2:t1", herdr_workspace_id="w2"),
+            NvimInstanceInfo(socket="/s2", cwd=str(d2), herdr_tab_id="w1:t1", herdr_workspace_id="w1"),
+        ]
+        matched = select_matching_instance(instances, agent_cwd=str(d1), agent_tab_id="w1:t2", agent_workspace_id="w1")
+        assert matched is not None
+        assert matched.socket == "/s2"
+
+    def test_same_workspace_prefers_same_cwd(self, tmp_path):
+        d1 = tmp_path / "p1"
+        d2 = tmp_path / "p2"
+        d1.mkdir()
+        d2.mkdir()
+        instances = [
+            NvimInstanceInfo(socket="/s1", cwd=str(d1), herdr_tab_id="w1:t1", herdr_workspace_id="w1"),
+            NvimInstanceInfo(socket="/s2", cwd=str(d2), herdr_tab_id="w1:t2", herdr_workspace_id="w1"),
+        ]
+        matched = select_matching_instance(instances, agent_cwd=str(d2), agent_tab_id="w1:t1", agent_workspace_id="w1")
+        assert matched is not None
+        assert matched.socket == "/s2"
+
 
 class TestFindNvimSockets:
     def test_discovers_xdg_and_tmp_sockets(self, tmp_path, monkeypatch):

@@ -137,7 +137,9 @@ class NvimConnection:
         socket_list = "\n".join(inst.format_line(i) for i, inst in enumerate(instances))
         msg = (
             f"Multiple Neovim instances found:\n{socket_list}\n\n"
-            "Call the `attach_nvim` tool with the socket path to connect."
+            "Call the `attach_nvim` tool with the socket path to connect "
+            "(when in a Herdr workspace, select an instance in the same workspace, "
+            "preferring the same working directory)."
         )
         raise RuntimeError(msg)
 
@@ -224,7 +226,7 @@ def select_matching_instance(
     agent_tab_id: str | None = None,
     agent_workspace_id: str | None = None,
 ) -> NvimInstanceInfo | None:
-    """Select an unambiguous Neovim instance matching the agent's cwd or Herdr topology."""
+    """Select an unambiguous Neovim instance matching the agent's Herdr workspace and cwd."""
     target_cwd = _norm_path(agent_cwd if agent_cwd is not None else str(Path.cwd()))
     live_tab, live_ws = "", ""
     agent_pane_id = os.environ.get("HERDR_PANE_ID", "")
@@ -236,8 +238,14 @@ def select_matching_instance(
         agent_workspace_id if agent_workspace_id is not None else (live_ws or os.environ.get("HERDR_WORKSPACE_ID", ""))
     )
 
+    candidates = instances
+    if ws_id:
+        ws_matches = [i for i in instances if i.herdr_workspace_id == ws_id]
+        if ws_matches:
+            candidates = ws_matches
+
     if target_cwd:
-        cwd_matches = [i for i in instances if i.cwd and _norm_path(i.cwd) == target_cwd]
+        cwd_matches = [i for i in candidates if i.cwd and _norm_path(i.cwd) == target_cwd]
         if len(cwd_matches) == 1:
             return cwd_matches[0]
         if len(cwd_matches) > 1:
@@ -245,23 +253,17 @@ def select_matching_instance(
                 tab_cwd = [i for i in cwd_matches if i.herdr_tab_id == tab_id]
                 if len(tab_cwd) == 1:
                     return tab_cwd[0]
-            if ws_id:
-                ws_cwd = [i for i in cwd_matches if i.herdr_workspace_id == ws_id]
-                if len(ws_cwd) == 1:
-                    return ws_cwd[0]
             return None
 
     if tab_id:
-        tab_matches = [i for i in instances if i.herdr_tab_id == tab_id]
+        tab_matches = [i for i in candidates if i.herdr_tab_id == tab_id]
         if len(tab_matches) == 1:
             return tab_matches[0]
         if len(tab_matches) > 1:
             return None
 
-    if ws_id:
-        ws_matches = [i for i in instances if i.herdr_workspace_id == ws_id]
-        if len(ws_matches) == 1:
-            return ws_matches[0]
+    if ws_id and len(candidates) == 1 and candidates[0].herdr_workspace_id == ws_id:
+        return candidates[0]
 
     return None
 
